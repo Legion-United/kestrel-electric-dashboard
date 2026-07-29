@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { brand } from "@/lib/data";
 import ThemeToggle from "./ThemeToggle";
-import BootScreen from "./BootScreen";
 import { ToastProvider } from "./interactive";
 import {
   Bolt, Home, Pipeline, Inbox, Doc, Field, Cash, Vault, Workforce, Brain,
@@ -65,7 +64,6 @@ export default function DashShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastProvider>
-    <BootScreen />
     <div className="shell">
       <div className={`scrim ${open ? "show" : ""}`} onClick={() => setOpen(false)} />
       <aside className={`rail ${open ? "open" : ""}`}>
