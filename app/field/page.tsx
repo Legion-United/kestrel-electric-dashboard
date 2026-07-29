@@ -1,19 +1,29 @@
 "use client";
+import * as React from "react";
 import { PageHead, Card, Pill } from "@/components/ui";
 import { fieldJob } from "@/lib/data";
 import { Field, Pin, Clock, File, Camera, Mic, Bolt, Vault, Check, Wrench, Send } from "@/components/icons";
+import { useToast } from "@/components/interactive";
 
 const docIcon: Record<string, React.ReactNode> = {
   Photo: <Camera width={16} height={16} />, Manual: <File width={16} height={16} />,
   Cert: <Check width={16} height={16} />, Doc: <File width={16} height={16} />,
 };
 
+const WRAP = ["Photos of finished board", "Circuit schedule completed", "EIC drafted from job data", "Notify Building Control"];
+
 export default function FieldPage() {
+  const toast = useToast();
+  const [done, setDone] = React.useState<boolean[]>([true, true, false, false]);
+  const [ask, setAsk] = React.useState("");
+
+  const toggle = (i: number) => setDone((d) => d.map((v, j) => (j === i ? !v : v)));
+
   return (
     <>
       <PageHead eyebrow="The Field Companion" title="On site" sub="Everything about this job is already on your phone before you knock. Focus on the fault, not the filing cabinet.">
         <Pill tone="g"><span className="dot g pulse" /> Arrived {fieldJob.arrived}</Pill>
-        <button className="btn primary"><Wrench /> Log work</button>
+        <button className="btn primary" onClick={() => toast("Work logged to " + fieldJob.ref, "g")}><Wrench /> Log work</button>
       </PageHead>
 
       <div className="card pad" style={{ marginBottom: 16, background: "linear-gradient(135deg,var(--ink),#1a2350)", color: "#fff", border: "none" }}>
@@ -29,8 +39,8 @@ export default function FieldPage() {
             </div>
           </div>
           <div className="row" style={{ gap: 9 }}>
-            <button className="btn volt sm"><Mic width={14} height={14} /> Voice note</button>
-            <button className="btn sm" style={{ background: "#ffffff14", color: "#fff", border: "1px solid #ffffff22" }}><Camera width={14} height={14} /> Photo</button>
+            <button className="btn volt sm" onClick={() => toast("Recording voice note…", "b")}><Mic width={14} height={14} /> Voice note</button>
+            <button className="btn sm" style={{ background: "#ffffff14", color: "#fff", border: "1px solid #ffffff22" }} onClick={() => toast("Camera opened — photo saved to job", "g")}><Camera width={14} height={14} /> Photo</button>
           </div>
         </div>
       </div>
@@ -50,7 +60,7 @@ export default function FieldPage() {
         <Card title="Site pack" sub={`${fieldJob.docs.length} documents ready`} icon={<File width={17} height={17} />}>
           <div className="stack" style={{ gap: 8 }}>
             {fieldJob.docs.map((d, i) => (
-              <div key={i} className="row" style={{ gap: 10, padding: "9px 10px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}>
+              <div key={i} className="row clickable" onClick={() => toast(`Opening ${d.n}`)} style={{ gap: 10, padding: "9px 10px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)" }}>
                 <span className="avatar sm" style={{ background: "var(--cobalt-soft)", color: "var(--cobalt-ink)", borderColor: "transparent" }}>{docIcon[d.t]}</span>
                 <span style={{ fontSize: 12.5, fontWeight: 600 }}>{d.n}</span>
                 <Pill tone="line">{d.t}</Pill>
@@ -70,7 +80,7 @@ export default function FieldPage() {
                 </div>
               </div>
             ))}
-            <button className="btn ghost sm"><Mic width={14} height={14} /> Add another</button>
+            <button className="btn ghost sm" onClick={() => toast("Recording another voice note…", "b")}><Mic width={14} height={14} /> Add another</button>
           </div>
         </Card>
       </div>
@@ -85,20 +95,29 @@ export default function FieldPage() {
             </div>
           </div>
           <div className="row" style={{ gap: 8 }}>
-            <div className="searchbox" style={{ flex: 1, minWidth: 0 }}><Vault width={15} height={15} /><span>Ask about regs, this client, or a manual…</span></div>
-            <button className="btn primary sm"><Send width={14} height={14} /></button>
+            <div className="searchbox" style={{ flex: 1, minWidth: 0 }}>
+              <Vault width={15} height={15} />
+              <input
+                value={ask}
+                onChange={(e) => setAsk(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && ask.trim()) { toast("Searching the Vault…"); setAsk(""); } }}
+                placeholder="Ask about regs, this client, or a manual…"
+                style={{ border: "none", background: "transparent", outline: "none", width: "100%", color: "inherit", font: "inherit" }}
+              />
+            </div>
+            <button className="btn primary sm" onClick={() => { toast("Searching the Vault…"); setAsk(""); }}><Send width={14} height={14} /></button>
           </div>
         </Card>
 
         <Card title="Wrap up" icon={<Check width={17} height={17} />}>
           <div className="stack" style={{ gap: 9 }}>
-            {["Photos of finished board", "Circuit schedule completed", "EIC drafted from job data", "Notify Building Control"].map((t, i) => (
-              <label key={i} className="row" style={{ gap: 10, cursor: "pointer" }}>
-                <span className="dot" style={{ width: 16, height: 16, borderRadius: 5, border: i < 2 ? "none" : "1.5px solid var(--line-2)", background: i < 2 ? "var(--cobalt)" : "transparent", display: "grid", placeItems: "center" }}>{i < 2 ? <Check width={11} height={11} color="#fff" /> : null}</span>
-                <span style={{ fontSize: 12.5, textDecoration: i < 2 ? "line-through" : "none", color: i < 2 ? "var(--muted)" : "var(--ink)" }}>{t}</span>
+            {WRAP.map((t, i) => (
+              <label key={i} className="row" style={{ gap: 10, cursor: "pointer" }} onClick={() => toggle(i)}>
+                <span className="dot" style={{ width: 16, height: 16, borderRadius: 5, border: done[i] ? "none" : "1.5px solid var(--line-2)", background: done[i] ? "var(--cobalt)" : "transparent", display: "grid", placeItems: "center" }}>{done[i] ? <Check width={11} height={11} color="#fff" /> : null}</span>
+                <span style={{ fontSize: 12.5, textDecoration: done[i] ? "line-through" : "none", color: done[i] ? "var(--muted)" : "var(--ink)" }}>{t}</span>
               </label>
             ))}
-            <button className="btn volt sm" style={{ marginTop: 6 }}>Generate certificate</button>
+            <button className="btn volt sm" style={{ marginTop: 6 }} onClick={() => toast("Certificate generated from job data", "g")}>Generate certificate</button>
           </div>
         </Card>
       </div>

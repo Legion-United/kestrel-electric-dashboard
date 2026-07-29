@@ -1,26 +1,35 @@
 "use client";
+import * as React from "react";
 import { PageHead, Pill } from "@/components/ui";
 import { eur } from "@/components/ui";
 import { stages } from "@/lib/data";
+import type { Job } from "@/lib/data";
 import { Plus, Bolt } from "@/components/icons";
+import { useToast, Modal, Drawer } from "@/components/interactive";
 
 const flagTone: Record<string, "r" | "y" | "b"> = { hot: "r", wait: "y", risk: "r" };
 const flagText: Record<string, string> = { hot: "Hot", wait: "Waiting", risk: "At risk" };
 
 export default function PipelinePage() {
+  const toast = useToast();
+  const [newOpen, setNewOpen] = React.useState(false);
+  const [job, setJob] = React.useState<{ job: Job; stage: string } | null>(null);
+
   const total = stages.reduce((a, s) => a + s.jobs.reduce((b, j) => b + j.value, 0), 0);
   const count = stages.reduce((a, s) => a + s.jobs.length, 0);
+  const jobStageIdx = job ? stages.findIndex((s) => s.name === job.stage) : -1;
+
   return (
     <>
       <PageHead eyebrow="Every project, one journey" title="Pipeline" sub="Eight stages, from the first call to the final payment. Nothing depends on you remembering what comes next.">
         <span className="pill line">{count} live jobs · {eur(total)}</span>
-        <button className="btn primary"><Plus /> New job</button>
+        <button className="btn primary" onClick={() => setNewOpen(true)}><Plus /> New job</button>
       </PageHead>
 
       <div className="card pad" style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 6, overflowX: "auto" }}>
         {stages.map((s, i) => (
           <div key={s.key} className="row" style={{ gap: 6, flex: "none" }}>
-            <div className="stack" style={{ alignItems: "center", gap: 6, minWidth: 92 }}>
+            <div className="stack clickable" onClick={() => toast(`${s.name} — ${s.jobs.length} ${s.jobs.length === 1 ? "job" : "jobs"}`)} style={{ alignItems: "center", gap: 6, minWidth: 92 }}>
               <span className="col-h" style={{ padding: 0, border: "none" }}>
                 <span className="idx">{s.idx}</span>
               </span>
@@ -44,7 +53,7 @@ export default function PipelinePage() {
               </div>
               <div className="col-body">
                 {s.jobs.map((j) => (
-                  <div className="jobcard" key={j.id}>
+                  <div className="jobcard clickable" key={j.id} onClick={() => setJob({ job: j, stage: s.name })}>
                     <div className="spread" style={{ alignItems: "flex-start" }}>
                       <span className="mono tiny muted">{j.id}</span>
                       {j.flag ? <Pill tone={flagTone[j.flag]}>{flagText[j.flag]}</Pill> : null}
@@ -72,8 +81,80 @@ export default function PipelinePage() {
           <b style={{ fontSize: 13.5 }}>The Coordinator keeps this board moving</b>
           <div className="tiny muted" style={{ marginTop: 2 }}>It nudges stalled jobs, reminds you before a cert is due, and updates clients at each stage. Two jobs are waiting on you: the Nawaz quote and the Braithwaite completion cert.</div>
         </div>
-        <button className="btn sm" style={{ marginLeft: "auto" }}>Review 2 waiting</button>
+        <button className="btn sm" style={{ marginLeft: "auto" }} onClick={() => toast("2 waiting jobs flagged for review", "y")}>Review 2 waiting</button>
       </div>
+
+      {/* New job modal */}
+      <Modal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        title="New job"
+        sub="Add a project to the pipeline"
+        wide
+        footer={
+          <>
+            <button className="btn ghost" onClick={() => setNewOpen(false)}>Cancel</button>
+            <button className="btn primary" onClick={() => { toast("Created new job in Customer contact", "g"); setNewOpen(false); }}>Create job</button>
+          </>
+        }
+      >
+        <div className="stack" style={{ gap: 14 }}>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="tiny muted">Job title</span>
+            <input className="field-in" placeholder="e.g. Garden office wiring" />
+          </label>
+          <label className="stack" style={{ gap: 6 }}>
+            <span className="tiny muted">Client</span>
+            <input className="field-in" placeholder="e.g. M. Sørensen" />
+          </label>
+          <div className="row" style={{ gap: 12 }}>
+            <label className="stack grow" style={{ gap: 6 }}>
+              <span className="tiny muted">Estimated value (£)</span>
+              <input className="field-in" type="number" placeholder="2400" />
+            </label>
+            <label className="stack grow" style={{ gap: 6 }}>
+              <span className="tiny muted">Stage</span>
+              <select className="field-in" defaultValue="Customer contact">
+                {stages.map((s) => <option key={s.key}>{s.name}</option>)}
+              </select>
+            </label>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Job detail drawer */}
+      <Drawer
+        open={!!job}
+        onClose={() => setJob(null)}
+        title={job?.job.title}
+        sub={job ? `${job.job.id} · ${job.stage}` : undefined}
+        footer={job ? (
+          <>
+            <button className="btn primary" onClick={() => { toast(`${job.job.id} advanced a stage`, "g"); setJob(null); }}>Advance stage</button>
+            <button className="btn ghost" onClick={() => { toast(`Message sent to ${job.job.client}`, "b"); setJob(null); }}>Message client</button>
+          </>
+        ) : null}
+      >
+        {job ? (
+          <div className="stack" style={{ gap: 12 }}>
+            <div className="kv"><span className="k">Client</span><span className="v">{job.job.client}</span></div>
+            <div className="kv"><span className="k">Location</span><span className="v">{job.job.place}</span></div>
+            <div className="kv"><span className="k">Value</span><span className="v">{eur(job.job.value)}</span></div>
+            <div className="kv"><span className="k">Age</span><span className="v">{job.job.age}</span></div>
+            {job.job.flag ? <div className="kv"><span className="k">Flag</span><span className="v">{flagText[job.job.flag]}</span></div> : null}
+            <div>
+              <div className="tiny muted" style={{ margin: "6px 0 10px" }}>Stage progress · {job.job.progress}%</div>
+              <div className="timeline">
+                {stages.map((s, i) => (
+                  <div key={s.key} className={`tl-item ${i < jobStageIdx ? "done" : i === jobStageIdx ? "now" : ""}`}>
+                    <div className="tt" style={{ fontSize: 12.5 }}>{s.idx}. {s.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Drawer>
     </>
   );
 }
